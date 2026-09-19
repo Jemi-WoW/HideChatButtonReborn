@@ -4,8 +4,14 @@ local watchedFrames = {}
 local watchedLookup = {}
 local frameStates = {}
 local hookedFrames = {}
+local reparentedFrames = {}
+local originalParents = {}
 local editModeActive = false
 local editModeHooked = false
+
+-- Retail chat code re-shows edit boxes on its own, so they get parked here instead.
+local hiddenHolder = CreateFrame("Frame", nil, UIParent)
+hiddenHolder:Hide()
 
 local EXTRA_FRAME_NAMES = {
     "GeneralDockManager",
@@ -20,13 +26,42 @@ local function GetChatWindowCount()
     return NUM_CHAT_WINDOWS or 10
 end
 
-local function AddWatchedFrame(frame)
+local function AddWatchedFrame(frame, reparent)
     if not frame or watchedLookup[frame] then
         return
     end
 
     watchedLookup[frame] = true
     watchedFrames[#watchedFrames + 1] = frame
+
+    if reparent then
+        reparentedFrames[frame] = true
+    end
+end
+
+local function HideFrame(frame)
+    if reparentedFrames[frame] then
+        if frame.ClearFocus then
+            frame:ClearFocus()
+        end
+
+        originalParents[frame] = originalParents[frame] or frame:GetParent() or UIParent
+        frame:SetParent(hiddenHolder)
+    end
+
+    frame:Hide()
+end
+
+local function RestoreFrame(frame)
+    local parent = originalParents[frame]
+    if parent then
+        frame:SetParent(parent)
+        originalParents[frame] = nil
+    end
+
+    if frameStates[frame] then
+        frame:Show()
+    end
 end
 
 local function IsHiddenByAddon()
@@ -50,6 +85,8 @@ local function BuildWatchList()
     for i = 1, GetChatWindowCount() do
         AddWatchedFrame(_G["ChatFrame" .. i])
         AddWatchedFrame(_G["ChatFrame" .. i .. "Tab"])
+        -- Retail parents the edit box outside the chat frame, so it needs hiding too.
+        AddWatchedFrame(_G["ChatFrame" .. i .. "EditBox"], true)
     end
 
     for _, name in ipairs(EXTRA_FRAME_NAMES) do
@@ -69,15 +106,13 @@ end
 
 local function HideWatchedFrames()
     for _, frame in ipairs(watchedFrames) do
-        frame:Hide()
+        HideFrame(frame)
     end
 end
 
 local function RestoreWatchedFrames()
-    for frame, wasShown in pairs(frameStates) do
-        if wasShown then
-            frame:Show()
-        end
+    for _, frame in ipairs(watchedFrames) do
+        RestoreFrame(frame)
     end
 end
 
@@ -153,7 +188,7 @@ function ns:RefreshWatchedFrames()
         for index = previousCount + 1, #watchedFrames do
             local frame = watchedFrames[index]
             frameStates[frame] = frame:IsShown() and true or false
-            frame:Hide()
+            HideFrame(frame)
         end
     end
 end
