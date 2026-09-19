@@ -1,8 +1,8 @@
 ## Interface: 11509
-## Title: <|cff00ff00HideChatButtonReborn|r> v2.0
+## Title: <|cff00ff00HideChatButtonReborn|r> v2.1
 ## Notes: HideChatButtonReborn - by Jemi
 ## Author: Jamie/Jemi
-## Version: 2.0
+## Version: 2.1
 ## SavedVariables: HideChatButtonRebornDB
 ## IconTexture: Interface\ChatFrame\UI-ChatIcon-Chat-Up
 ## Category: Chat
