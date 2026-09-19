@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: <|cff00ff00HideChatButtonReborn|r> v2.0
+## Notes: HideChatButtonReborn - by Jemi
+## Author: Jamie/Jemi
+## Version: 2.0
+## SavedVariables: HideChatButtonRebornDB
+## IconTexture: Interface\ChatFrame\UI-ChatIcon-Chat-Up
+## Category: Chat
+## X-Curse-Project-ID: 1511417
+
+Core\Compat.lua
+Core\Core.lua
+Core\ChatManager.lua
+UI\Button.lua
+UI\Anchor.lua
+UI\Toast.lua
+UI\Options\General.lua
+UI\Options\Toasts.lua
+UI\Settings.lua
