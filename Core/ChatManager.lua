@@ -22,6 +22,9 @@ local EXTRA_FRAME_NAMES = {
     "QuickJoinToastButton",
 }
 
+local MAX_CHAT_FRAME_SCAN = 50
+local ENFORCE_INTERVAL = 0.25
+
 local function GetChatWindowCount()
     return NUM_CHAT_WINDOWS or 10
 end
@@ -82,11 +85,15 @@ local function InstallHooks()
 end
 
 local function BuildWatchList()
-    for i = 1, GetChatWindowCount() do
-        AddWatchedFrame(_G["ChatFrame" .. i])
-        AddWatchedFrame(_G["ChatFrame" .. i .. "Tab"])
-        -- Retail parents the edit box outside the chat frame, so it needs hiding too.
-        AddWatchedFrame(_G["ChatFrame" .. i .. "EditBox"], true)
+    -- Whisper windows are temporary frames and can sit past NUM_CHAT_WINDOWS.
+    for i = 1, math.max(GetChatWindowCount(), MAX_CHAT_FRAME_SCAN) do
+        local chatFrame = _G["ChatFrame" .. i]
+        if chatFrame then
+            AddWatchedFrame(chatFrame)
+            AddWatchedFrame(_G["ChatFrame" .. i .. "Tab"])
+            -- Retail parents the edit box outside the chat frame, so it needs hiding too.
+            AddWatchedFrame(_G["ChatFrame" .. i .. "EditBox"], true)
+        end
     end
 
     for _, name in ipairs(EXTRA_FRAME_NAMES) do
@@ -138,6 +145,63 @@ local function HookEditMode()
             HideWatchedFrames()
         end
     end)
+end
+
+local function EnforceHidden()
+    ns:RefreshWatchedFrames()
+
+    for _, frame in ipairs(watchedFrames) do
+        if frame:IsShown() then
+            if not reparentedFrames[frame] then
+                frameStates[frame] = true
+            end
+            HideFrame(frame)
+        end
+    end
+end
+
+local clientHooksInstalled = false
+
+local function InstallClientHooks()
+    if clientHooksInstalled then
+        return
+    end
+
+    clientHooksInstalled = true
+
+    -- The client opens, docks and selects chat windows behind our back.
+    for _, name in ipairs({ "FCF_OpenTemporaryWindow", "FCF_OpenNewWindow", "FCF_DockFrame", "FCF_SelectDockFrame" }) do
+        if type(_G[name]) == "function" then
+            hooksecurefunc(name, function()
+                if IsHiddenByAddon() then
+                    EnforceHidden()
+                end
+            end)
+        end
+    end
+
+    -- Opening chat input while hidden gets no edit box to focus, so show chat and let it retry.
+    local function HookChatOpener(owner, key)
+        if type(owner) ~= "table" or type(owner[key]) ~= "function" then
+            return
+        end
+
+        hooksecurefunc(owner, key, function(...)
+            if ns:GetDB().hidden then
+                ns:SetChatHidden(false)
+                owner[key](...)
+            end
+        end)
+    end
+
+    for _, key in ipairs({ "ChatEdit_ActivateChat", "ChatFrame_OpenChat", "ChatFrame_SendTell", "ChatFrame_ReplyTell" }) do
+        HookChatOpener(_G, key)
+    end
+
+    -- Forever moved these onto a namespace; the old globals may no longer be the live path.
+    for _, key in ipairs({ "ActivateChat", "OpenChat", "SendTell", "ReplyTell" }) do
+        HookChatOpener(_G.ChatFrameUtil, key)
+    end
 end
 
 function ns:IsChatHidden()
@@ -199,8 +263,24 @@ function ns:InitializeChatManager()
 
     BuildWatchList()
     HookEditMode()
+    InstallClientHooks()
 
     local watcher = CreateFrame("Frame")
+    local enforceElapsed = 0
+
+    watcher:SetScript("OnUpdate", function(_, elapsed)
+        if not IsHiddenByAddon() then
+            return
+        end
+
+        enforceElapsed = enforceElapsed + elapsed
+        if enforceElapsed < ENFORCE_INTERVAL then
+            return
+        end
+
+        enforceElapsed = 0
+        EnforceHidden()
+    end)
 
     for _, event in ipairs({ "UPDATE_CHAT_WINDOWS", "UPDATE_FLOATING_CHAT_WINDOWS", "ADDON_LOADED", "PLAYER_ENTERING_WORLD" }) do
         pcall(watcher.RegisterEvent, watcher, event)
