@@ -56,7 +56,7 @@ function ns:CreateSettings()
 
     local version = about:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     version:SetPoint("TOPLEFT", subtitle, "BOTTOMLEFT", 0, -18)
-    version:SetText("Version: 2.3")
+    version:SetText("Version: 2.4")
 
     local author = about:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     author:SetPoint("TOPLEFT", version, "BOTTOMLEFT", 0, -8)

@@ -33,6 +33,9 @@ local defaults = {
         },
     },
     anchorMode = false,
+}
+
+local charDefaults = {
     hidden = false,
 }
 
@@ -121,6 +124,10 @@ end
 
 function ns:GetDB()
     return HideChatButtonRebornDB
+end
+
+function ns:GetCharDB()
+    return HideChatButtonRebornCharDB
 end
 
 function ns:GetPendingIndicator()
@@ -344,6 +351,9 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
         local addonName = ...
         if addonName == ADDON_NAME then
             HideChatButtonRebornDB = CopyDefaults(defaults, HideChatButtonRebornDB)
+            HideChatButtonRebornCharDB = CopyDefaults(charDefaults, HideChatButtonRebornCharDB)
+            -- Hidden state moved to per-character storage.
+            HideChatButtonRebornDB.hidden = nil
         end
         return
     end

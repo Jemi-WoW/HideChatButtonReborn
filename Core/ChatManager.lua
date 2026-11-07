@@ -68,7 +68,7 @@ local function RestoreFrame(frame)
 end
 
 local function IsHiddenByAddon()
-    return ns:GetDB().hidden and not editModeActive
+    return ns:IsChatHidden() and not editModeActive
 end
 
 local function InstallHooks()
@@ -133,14 +133,14 @@ local function HookEditMode()
     -- Edit Mode must be able to show and move chat even while we hide it.
     EditModeManagerFrame:HookScript("OnShow", function()
         editModeActive = true
-        if ns:GetDB().hidden then
+        if ns:IsChatHidden() then
             RestoreWatchedFrames()
         end
     end)
 
     EditModeManagerFrame:HookScript("OnHide", function()
         editModeActive = false
-        if ns:GetDB().hidden then
+        if ns:IsChatHidden() then
             CaptureFrameStates()
             HideWatchedFrames()
         end
@@ -187,29 +187,30 @@ local function InstallClientHooks()
         end
 
         hooksecurefunc(owner, key, function(...)
-            if ns:GetDB().hidden then
+            if ns:IsChatHidden() then
                 ns:SetChatHidden(false)
                 owner[key](...)
             end
         end)
     end
 
-    for _, key in ipairs({ "ChatEdit_ActivateChat", "ChatFrame_OpenChat", "ChatFrame_SendTell", "ChatFrame_ReplyTell" }) do
+    -- Not ActivateChat: the client calls it itself to refresh chat at login, which would unhide it.
+    for _, key in ipairs({ "ChatFrame_OpenChat", "ChatFrame_SendTell", "ChatFrame_ReplyTell" }) do
         HookChatOpener(_G, key)
     end
 
     -- Forever moved these onto a namespace; the old globals may no longer be the live path.
-    for _, key in ipairs({ "ActivateChat", "OpenChat", "SendTell", "ReplyTell" }) do
+    for _, key in ipairs({ "OpenChat", "SendTell", "ReplyTell" }) do
         HookChatOpener(_G.ChatFrameUtil, key)
     end
 end
 
 function ns:IsChatHidden()
-    return self:GetDB().hidden
+    return self:GetCharDB().hidden
 end
 
 function ns:SetChatHidden(hidden)
-    local db = self:GetDB()
+    local db = self:GetCharDB()
 
     if hidden then
         CaptureFrameStates()
